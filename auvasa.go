@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/yhat/scrape"
 
@@ -14,6 +15,14 @@ import (
 	"golang.org/x/text/transform"
 )
 
+// TiemposParada agrupa los tiempos de llegada de los buses para una parada.
+type TiemposParada struct {
+	Nombre  string
+	Codigo  int
+	Momento time.Time
+	Tiempos []ProximoBus
+}
+
 // ProximoBus describe un tiempo de llegada para un bus concreto.
 type ProximoBus struct {
 	Linea   string
@@ -23,23 +32,26 @@ type ProximoBus struct {
 
 // Get devuelve el conjunto de tiempos de llegada para los buses de la parada
 // dada. Hay que comprobar que no se devuelve error.
-func Get(parada int) (string, []ProximoBus, error) {
+func Get(parada int) (TiemposParada, error) {
 	resp, err := http.Get("http://www.auvasa.es/paradamb.asp?codigo=" +
 		strconv.Itoa(parada))
 	if err != nil {
-		return fail("Error al conectar con el servidor de AUVASA.")
+		return TiemposParada{}, errors.New("Error al conectar con el servidor de AUVASA.")
 	}
 
 	rInUTF8 := transform.NewReader(resp.Body, charmap.Windows1252.NewDecoder())
 	root, err := html.Parse(rInUTF8)
 	if err != nil {
-		return fail("Error en la respuesta de AUVASA.")
+		return TiemposParada{}, errors.New("Error en la respuesta de AUVASA.")
 	}
 
 	headers := scrape.FindAll(root, scrape.ByTag(atom.H1))
+	if len(headers) < 2 {
+		return TiemposParada{}, errors.New("La parada indicada parece errónea.")
+	}
+
 	lineasTiempos := scrape.FindAll(root, scrape.ByClass("style36"))
-	var resultadosArray [100]ProximoBus
-	resultados := resultadosArray[0:0]
+	resultados := make([]ProximoBus, len(lineasTiempos))
 	for _, item := range lineasTiempos {
 		valores := scrape.FindAll(item, scrape.ByClass("style38"))
 		resultados = append(resultados, ProximoBus{
@@ -50,15 +62,14 @@ func Get(parada int) (string, []ProximoBus, error) {
 	}
 
 	if len(resultados) == 0 {
-		return fail("No hay tiempos para la parada especificada.")
+		return TiemposParada{}, errors.New("No hay tiempos para la parada especificada. Puede que sea errónea.")
 	}
 
-	if len(headers) >= 2 {
-		return scrape.Text(headers[1]), resultados, nil
-	}
-	return fail("La respuesta de AUVASA no se corresponde con lo esperado.")
-}
+	return TiemposParada{
+		Nombre:  scrape.Text(headers[1]),
+		Tiempos: resultados,
+		Momento: time.Now(),
+		Codigo:  parada,
+	}, nil
 
-func fail(msg string) (string, []ProximoBus, error) {
-	return "", nil, errors.New(msg)
 }
