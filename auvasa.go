@@ -52,13 +52,13 @@ func Get(parada int) (TiemposParada, error) {
 
 	lineasTiempos := scrape.FindAll(root, scrape.ByClass("style36"))
 	resultados := make([]ProximoBus, len(lineasTiempos))
-	for _, item := range lineasTiempos {
+	for i, item := range lineasTiempos {
 		valores := scrape.FindAll(item, scrape.ByClass("style38"))
-		resultados = append(resultados, ProximoBus{
+		resultados[i] = ProximoBus{
 			Linea:   scrape.Text(valores[0]),
 			Destino: scrape.Text(valores[2]),
 			Minutos: scrape.Text(valores[3]),
-		})
+		}
 	}
 
 	if len(resultados) == 0 {
