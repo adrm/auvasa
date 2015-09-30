@@ -62,7 +62,7 @@ func Get(parada int) (TiemposParada, error) {
 	}
 
 	if len(resultados) == 0 {
-		return TiemposParada{}, errors.New("No hay tiempos para la parada especificada. Puede que sea errónea.")
+		return TiemposParada{}, errors.New("No hay tiempos para la parada especificada. Puede que sea errónea o que ya no haya buses.")
 	}
 
 	return TiemposParada{
