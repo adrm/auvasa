@@ -30,10 +30,12 @@ func Get(parada int) (TiemposParada, error) {
 		return TiemposParada{}, errors.New("Error en la respuesta de AUVASA.")
 	}
 
-	lineasTiempos := scrape.FindAll(root, scrape.ByTag(atom.Tbody))[1:]
-	if len(lineasTiempos) < 1 {
+	lineasTiempos := scrape.FindAll(root, scrape.ByTag(atom.Tbody))
+	if len(lineasTiempos) < 2 {
 		return TiemposParada{}, errors.New("La parada indicada parece errónea.")
 	}
+
+	lineasTiempos = lineasTiempos[1:]
 
 	resultados := make([]ProximoBus, len(lineasTiempos))
 	for i, item := range lineasTiempos {
