@@ -15,25 +15,10 @@ import (
 	"golang.org/x/text/transform"
 )
 
-// TiemposParada agrupa los tiempos de llegada de los buses para una parada.
-type TiemposParada struct {
-	Nombre  string
-	Codigo  int
-	Momento time.Time
-	Tiempos []ProximoBus
-}
-
-// ProximoBus describe un tiempo de llegada para un bus concreto.
-type ProximoBus struct {
-	Linea   string
-	Destino string
-	Minutos string
-}
-
 // Get devuelve el conjunto de tiempos de llegada para los buses de la parada
 // dada. Hay que comprobar que no se devuelve error.
 func Get(parada int) (TiemposParada, error) {
-	resp, err := http.Get("http://www.auvasa.es/paradamb.asp?codigo=" +
+	resp, err := http.Get("http://www.auvasa.es/parada.asp?codigo=" +
 		strconv.Itoa(parada))
 	if err != nil {
 		return TiemposParada{}, errors.New("Error al conectar con el servidor de AUVASA.")
@@ -45,19 +30,18 @@ func Get(parada int) (TiemposParada, error) {
 		return TiemposParada{}, errors.New("Error en la respuesta de AUVASA.")
 	}
 
-	headers := scrape.FindAll(root, scrape.ByTag(atom.H1))
-	if len(headers) < 2 {
+	lineasTiempos := scrape.FindAll(root, scrape.ByTag(atom.Tbody))[1:]
+	if len(lineasTiempos) < 1 {
 		return TiemposParada{}, errors.New("La parada indicada parece errónea.")
 	}
 
-	lineasTiempos := scrape.FindAll(root, scrape.ByClass("style36"))
 	resultados := make([]ProximoBus, len(lineasTiempos))
 	for i, item := range lineasTiempos {
-		valores := scrape.FindAll(item, scrape.ByClass("style38"))
+		valores := scrape.FindAll(item, scrape.ByTag(atom.Td))
 		resultados[i] = ProximoBus{
 			Linea:   scrape.Text(valores[0]),
-			Destino: scrape.Text(valores[2]),
-			Minutos: scrape.Text(valores[3]),
+			Destino: scrape.Text(valores[3]),
+			Minutos: scrape.Text(valores[4]),
 		}
 	}
 
@@ -66,7 +50,7 @@ func Get(parada int) (TiemposParada, error) {
 	}
 
 	return TiemposParada{
-		Nombre:  scrape.Text(headers[1]),
+		Nombre:  scrape.Text(scrape.FindAll(root, scrape.ByTag(atom.H5))[1]),
 		Tiempos: resultados,
 		Momento: time.Now(),
 		Codigo:  parada,
